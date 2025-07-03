@@ -1,0 +1,8 @@
+{
+    "Fantasy Classique": {
+        "prompt": "Le héros, {hero_name}, est un jeune aventurier dans un royaume médiéval fantastique. Il commence son voyage dans le village de Chêneval, cherchant la gloire et la fortune. Sa première quête l'attend à l'auberge locale."
+    },
+    "Science-Fiction Spatiale": {
+        "prompt": "Le capitaine {hero_name} est aux commandes du vaisseau d'exploration 'L'Errant des Étoiles'. Une anomalie spatiale inconnue vient d'apparaître sur les capteurs, droit devant. L'équipage attend ses ordres."
+    }
+}
