@@ -1,8 +1,8 @@
 {
     "Fantasy Classique": {
-        "prompt": "Le héros, {hero_name}, est un jeune aventurier dans un royaume médiéval fantastique. Il commence son voyage dans le village de Chêneval, cherchant la gloire et la fortune. Sa première quête l'attend à l'auberge locale."
+        "prompt": "Le héros, {hero_name}, est un aventurier dans un royaume médiéval fantastique. Il se trouve dans un endroit aléatoire - que ce soit une forêt mystérieuse, une route de montagne, une cité marchande, des ruines anciennes, ou tout autre lieu que tu inventeras. Ce monde n'est pas aussi simple qu'il y paraît - les habitants cachent des secrets, les nobles ont des agendas politiques, et même les quêtes les plus simples ont des conséquences inattendues.\n\n**Instructions pour l'IA :**\n- Propose toujours des choix avec des dilemmes moraux\n- Les PNJ ont leurs propres motivations et ne sont pas toujours honnêtes\n- Inclus un choix créatif ou inattendu dans chaque situation\n- Les actions ont des conséquences qui reviennent plus tard\n- Évite les solutions parfaites - tout a un prix"
     },
     "Science-Fiction Spatiale": {
-        "prompt": "Le capitaine {hero_name} est aux commandes du vaisseau d'exploration 'L'Errant des Étoiles'. Une anomalie spatiale inconnue vient d'apparaître sur les capteurs, droit devant. L'équipage attend ses ordres."
+        "prompt": "Le capitaine {hero_name} se trouve dans une situation spatiale aléatoire - que ce soit sur une station spatiale, une planète inconnue, dans l'espace intersidéral, ou dans une situation d'urgence que tu inventeras. Les défis technologiques et les tensions politiques compliquent chaque décision.\n\n**Instructions pour l'IA :**\n- Chaque décision a des répercussions sur l'équipage et la mission\n- Les membres d'équipage ont leurs propres agendas\n- Inclus des choix technologiques créatifs\n- Les conséquences des décisions précédentes affectent les situations futures\n- Évite les solutions parfaites - l'espace est dangereux"
     }
 }
