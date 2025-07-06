@@ -6,6 +6,12 @@ Modular architecture with clean separation of concerns.
 """
 import asyncio
 import logging
+import sys
+import os
+
+# Add src to path to allow for absolute imports
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), 'src')))
+
 
 from src.ui.main_window import RPGApp
 from src.utils.logger_config import setup_logging

@@ -10,6 +10,9 @@ aiohttp>=3.9.0                 # Async HTTP client for Gemini API
 # GUI framework
 customtkinter>=5.2.0           # Modern tkinter interface
 
+# Data validation and serialization
+pydantic>=2.0.0                # Data validation and serialization
+
 # Optional: Development and debugging
 # pytest>=7.0.0                # For unit testing (uncomment for development)
 # black>=23.0.0                # Code formatting (uncomment for development)
