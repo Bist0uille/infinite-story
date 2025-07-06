@@ -418,7 +418,7 @@ class RPGApp(AsyncioTk):
     async def ask_ai(self, user_input, is_continuation=False, max_retries=2, previous_response=None):
         logging.debug(f"ask_ai called. Input: '{user_input}', Continuation: {is_continuation}, Retries left: {max_retries}")
 
-        prompt = self.game_engine.build_prompt_with_world_state(user_input, is_continuation, previous_response)
+        prompt = self.game_engine.build_prompt_with_context(user_input, is_continuation, previous_response)
         
         if not previous_response:
             self.game_engine.add_user_message(prompt)
@@ -432,7 +432,7 @@ class RPGApp(AsyncioTk):
             if len(choices) == 4:
                 self.display_log(text)
                 self.update_choices(choices)
-                await self._update_world_state(text) # NEW: Update state after a valid response
+                # await self._update_world_state(text) # DISABLED: Causes MAX_TOKENS - TODO: Fix later
                 logging.info("AI response was valid. Updated UI and world state.")
             elif max_retries > 0:
                 self.display_log("Réponse de l'IA invalide. Nouvelle tentative...")

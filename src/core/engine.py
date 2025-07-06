@@ -42,52 +42,83 @@ class GameEngine:
             self.story_log.pop()
             
     def build_system_prompt(self, base_prompt: str, style_instruction: str) -> str:
-        """Build the complete system prompt for game start"""
-        prompt_system = f"{base_prompt}\n\n"
+        """Build adaptive system prompt based on game phase"""
         
-        has_custom_instructions = "instructions pour l'ia" in base_prompt.lower() or \
-                                  "style narratif" in base_prompt.lower() or \
-                                  "instructions pour l'ia" in style_instruction.lower()
-        
-        if not has_custom_instructions:
-            prompt_system += (
-                "**Instructions strictes pour le Maître du Jeu (IA) :**\n"
-                f"1.  **Style Narratif :** {style_instruction}\n"
-                "2.  **Format de réponse :** Ta réponse doit TOUJOURS être une partie narrative suivie d'une liste de 4 choix numérotés (1. à 4.).\n"
-                "3.  **Continuité :** L'histoire doit être cohérente avec les choix précédents et les faits établis.\n"
-                "4.  **Ne jamais conclure :** L'aventure ne doit jamais se terminer. Propose toujours des choix pour continuer.\n"
-                f"5.  **Héros :** Le personnage principal est et restera {self.hero_name}."
-            )
+        # Détecter le type d'univers de façon intelligente
+        if any(word in base_prompt.lower() for word in ["fantasy", "médiéval", "dragon", "magie"]):
+            universe_type = "fantasy"
+        elif any(word in base_prompt.lower() for word in ["science", "spatial", "vaisseau", "captain"]):
+            universe_type = "scifi"
         else:
-            if style_instruction not in base_prompt:
-                prompt_system += f"**Style Narratif Additionnel :** {style_instruction}\n\n"
-            prompt_system += (
-                "**Règles de base du jeu :**\n"
-                "- Ta réponse doit TOUJOURS être une partie narrative suivie d'une liste de 4 choix numérotés (1. à 4.).\n"
-                "- L'aventure ne doit jamais se terminer.\n"
-                f"- Le personnage principal est et restera {self.hero_name}.\n"
-                "- Maintiens une continuité stricte avec les faits établis dans la section 'FAITS ÉTABLIS'."
-            )
+            universe_type = "adventure"
         
-        return prompt_system
+        # Templates adaptatifs ultra-compacts
+        universe_templates = {
+            "fantasy": f"Aventure fantasy avec {self.hero_name} dans un monde médiéval.",
+            "scifi": f"Aventure spatiale avec le capitaine {self.hero_name}.",
+            "adventure": f"Aventure avec {self.hero_name}."
+        }
         
-    def build_prompt_with_world_state(self, user_input: str, is_continuation: bool = False, previous_response: Optional[str] = None) -> str:
-        """Build prompt including world state context"""
+        # Style compacté
+        style_compact = self._compact_style(style_instruction)
+        
+        # Prompt final très compact mais informatif
+        return f"{universe_templates[universe_type]} {style_compact} Format strict: histoire courte + 4 choix numérotés."
+    
+    def _compact_style(self, style_instruction: str) -> str:
+        """Compact style instruction to essential keywords"""
+        style = style_instruction.lower()
+        
+        if "dramatique" in style or "suspense" in style:
+            return "Style: tension et suspense."
+        elif "humoristique" in style or "amusant" in style:
+            return "Style: léger et drôle."
+        elif "poétique" in style or "imagé" in style:
+            return "Style: riche et évocateur."
+        else:
+            return "Style: direct et clair."
+        
+    def build_prompt_with_context(self, user_input: str, is_continuation: bool = False, previous_response: Optional[str] = None) -> str:
+        """Build context-aware prompt without world state (temporarily disabled)"""
+        
+        # Construire un contexte à partir des derniers messages
+        context_summary = self._build_recent_context()
+        
         if previous_response:
-            prompt = f"Ta réponse précédente était invalide : '{previous_response}'. Corrige-la. Fournis une narration et 4 choix numérotés."
+            prompt = f"Corrige ta réponse précédente. Histoire + 4 choix numérotés."
         elif is_continuation:
-            prompt = "Continue l'histoire et propose 4 nouveaux choix."
+            prompt = f"Continue l'aventure. {context_summary} Histoire + 4 choix."
         else:
-            prompt = f"Le joueur choisit : '{user_input}'. Décris les conséquences et propose 4 nouveaux choix."
-            
-        if not self.world_state:
-            return prompt
-            
-        state_summary = "\n\n**FAITS ÉTABLIS (à respecter impérativement) :**\n"
-        for key, value in self.world_state.items():
-            state_summary += f"- {key}: {value}\n"
-            
-        return state_summary + "\n" + prompt
+            # Version adaptative selon la longueur de l'histoire
+            if len(self.story_log) <= 2:  # Début d'aventure
+                prompt = f"Choix du joueur: '{user_input}'. Commence l'aventure avec ce choix. Histoire + 4 choix."
+            else:  # Continuation
+                prompt = f"Choix: '{user_input}'. {context_summary} Continue l'histoire + 4 choix."
+        
+        return prompt
+    
+    def _build_recent_context(self) -> str:
+        """Build compact context from recent messages"""
+        if len(self.story_log) <= 2:
+            return ""
+        
+        # Prendre les 2 derniers messages assistant (les dernières histoires)
+        recent_assistant_messages = [
+            msg for msg in self.story_log[-4:] 
+            if msg.get('role') == 'assistant'
+        ]
+        
+        if not recent_assistant_messages:
+            return ""
+        
+        # Extraire juste le début de la dernière histoire pour contexte
+        last_story = recent_assistant_messages[-1]['content']
+        story_start = last_story.split('\n')[0]  # Première ligne seulement
+        
+        if len(story_start) > 100:
+            story_start = story_start[:100] + "..."
+        
+        return f"Contexte récent: {story_start}"
         
     def extract_choices(self, text: str) -> Tuple[str, List[str]]:
         """Extract narrative and choices from AI response"""
