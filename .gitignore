@@ -1,8 +1,16 @@
 # Environment variables
 .env
-.claude 
-\"custom_styles.json\"  
-\"custom_universes.json\"  
-\"saves/\" 
+.claude
+
+# Custom data
+custom_styles.json
+custom_universes.json
+
+# Saved games and logs
+saves/
 logs/
 screens/
+
+# Python cache
+__pycache__/
+src/__pycache__/
