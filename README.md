@@ -43,19 +43,34 @@ Welcome to **Infinite Story**, a text-based RPG where your imagination is the on
 
 ## 📂 Project Structure
 
-The project is organized into the following components:
+The project follows a modular architecture with clean separation of concerns:
 
-*   `run_game.py`: The main entry point of the application.
-*   `src/`: Contains the core application logic.
-    *   `ai_client.py`: Manages the interaction with the Gemini API.
-    *   `data_manager.py`: Handles loading and saving of presets, custom data, and game saves.
-    *   `gui_app.py`: Implements the graphical user interface using `customtkinter`.
-    *   `logger_config.py`: Configures the application's logging.
-*   `saves/`: Stores your saved game files.
-*   `custom_universes.json`: Your custom-defined universes.
-*   `custom_styles.json`: Your custom-defined narrative styles.
-*   `preset_universes.json`: Pre-defined universes to get you started.
-*   `preset_styles.json`: Pre-defined narrative styles.
+```
+├── src/
+│   ├── core/                 # Core game logic (UI-independent)
+│   │   └── engine.py         # GameEngine - manages story state and game logic
+│   ├── services/             # External service integrations
+│   │   ├── ai_service.py     # AI API client (Gemini integration)
+│   │   └── data_service.py   # Data persistence and file management
+│   ├── ui/                   # User interface layer
+│   │   └── main_window.py    # Main application window and UI logic
+│   └── utils/                # Utility modules
+│       └── logger_config.py  # Logging configuration
+├── run_game.py              # Application entry point
+├── saves/                   # Game save files directory
+├── requirements.txt         # Python dependencies
+└── Configuration files:
+    ├── custom_universes.json    # User-defined story universes
+    ├── custom_styles.json       # User-defined narrative styles
+    ├── preset_universes.json    # Built-in story universes
+    └── preset_styles.json       # Built-in narrative styles
+```
+
+### Architecture Benefits:
+- **Modular Design:** Clear separation between game logic, UI, and services
+- **Maintainability:** Each module has a single responsibility
+- **Testability:** Core logic is independent of UI framework
+- **Extensibility:** Easy to add new features or replace components
 
 ## 🤝 Contributing
 
