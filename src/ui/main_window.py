@@ -6,8 +6,9 @@ import traceback
 import os
 import logging
 
-from .ai_client import AIClient
-from . import data_manager as dm
+from ..services.ai_service import AIClient
+from ..services import data_service as dm
+from ..core.engine import GameEngine
 
 class AsyncioTk(ctk.CTk):
     """A CustomTkinter root window with an integrated asyncio event loop."""
@@ -36,11 +37,8 @@ class RPGApp(AsyncioTk):
         self.geometry("1200x750")
         ctk.set_appearance_mode("Dark")
 
-        # --- Game State ---
-        self.story_log = []
-        self.world_state = {} # NEW: To store key facts
-        self.debug_mode = True
-        self.hero_name = "Tim"
+        # --- Game Engine ---
+        self.game_engine = GameEngine()
         self.font_size = 14
 
         # --- AI Client ---
@@ -116,7 +114,7 @@ class RPGApp(AsyncioTk):
         ctk.CTkLabel(char_frame, text="Personnage", font=ctk.CTkFont(weight="bold")).pack(pady=(5,0))
         self.hero_name_entry = ctk.CTkEntry(char_frame, placeholder_text="Nom du héros")
         self.hero_name_entry.pack(pady=5, padx=10, fill="x")
-        self.hero_name_entry.insert(0, self.hero_name)
+        self.hero_name_entry.insert(0, self.game_engine.hero_name)
 
         uni_frame = ctk.CTkFrame(tab)
         uni_frame.grid(row=1, column=0, padx=10, pady=10, sticky="ew")
@@ -137,7 +135,7 @@ class RPGApp(AsyncioTk):
 
         action_frame = ctk.CTkFrame(tab)
         action_frame.grid(row=2, column=0, padx=10, pady=10, sticky="ew")
-        self.start_button = ctk.CTkButton(action_frame, text="Démarrer l’aventure", command=self.start_game_async)
+        self.start_button = ctk.CTkButton(action_frame, text="Démarrer l'aventure", command=self.start_game_async)
         self.start_button.pack(pady=5, padx=10, fill="x")
         self.restart_button = ctk.CTkButton(action_frame, text="Recommencer", command=self.start_game_async)
         self.restart_button.pack(pady=5, padx=10, fill="x")
@@ -273,8 +271,7 @@ class RPGApp(AsyncioTk):
         if not self._check_ai_available():
             return
         
-        self.story_log.clear()
-        self.world_state.clear() # NEW: Reset world state on new game
+        self.game_engine.clear_game_state()
         self.text.configure(state="normal")
         self.text.delete("1.0", "end")
         self.text.configure(state="disabled")
@@ -283,49 +280,19 @@ class RPGApp(AsyncioTk):
         custom_universe_prompt = self.custom_story_entry.get().strip()
         style_name = self.style_var.get()
         style_instruction = self.all_styles.get(style_name, "Style par défaut.")
-        self.hero_name = self.hero_name_entry.get().strip() or "Aventurier"
+        self.game_engine.set_hero_name(self.hero_name_entry.get())
 
         # --- Build the System Prompt ---
         if custom_universe_prompt:
-            base_prompt = f"Lance une aventure sur ce thème : {custom_universe_prompt}. Le héros est {self.hero_name}."
-            logging.info(f"Starting game with custom universe. Hero: {self.hero_name}, Prompt: {custom_universe_prompt}")
+            base_prompt = f"Lance une aventure sur ce thème : {custom_universe_prompt}. Le héros est {self.game_engine.hero_name}."
+            logging.info(f"Starting game with custom universe. Hero: {self.game_engine.hero_name}, Prompt: {custom_universe_prompt}")
         else:
-            base_prompt = self.all_universes.get(universe_name, {}).get("prompt", "").replace("{hero_name}", self.hero_name)
-            logging.info(f"Starting game with preset universe. Hero: {self.hero_name}, Universe: {universe_name}")
+            base_prompt = self.all_universes.get(universe_name, {}).get("prompt", "").replace("{hero_name}", self.game_engine.hero_name)
+            logging.info(f"Starting game with preset universe. Hero: {self.game_engine.hero_name}, Universe: {universe_name}")
 
-        # Start with the base prompt from the universe
-        prompt_system = f"{base_prompt}\n\n"
-
-        # Check if the user has provided detailed instructions in the universe or style
-        # We assume that if they use keywords like "Instructions pour l'IA" or "Style Narratif", they want to override the default.
-        has_custom_instructions = "instructions pour l'ia" in base_prompt.lower() or \
-                                  "style narratif" in base_prompt.lower() or \
-                                  "instructions pour l'ia" in style_instruction.lower()
-
-        if not has_custom_instructions:
-            # If no custom instructions are found, append the default strict instructions.
-            prompt_system += (
-                "**Instructions strictes pour le Maître du Jeu (IA) :**\n"
-                f"1.  **Style Narratif :** {style_instruction}\n"
-                "2.  **Format de réponse :** Ta réponse doit TOUJOURS être une partie narrative suivie d'une liste de 4 choix numérotés (1. à 4.).\n"
-                "3.  **Continuité :** L'histoire doit être cohérente avec les choix précédents et les faits établis.\n"
-                "4.  **Ne jamais conclure :** L'aventure ne doit jamais se terminer. Propose toujours des choix pour continuer.\n"
-                f"5.  **Héros :** Le personnage principal est et restera {self.hero_name}."
-            )
-        else:
-            # If custom instructions are present, just append the style instruction if it's not already in the base prompt.
-            if style_instruction not in base_prompt:
-                 prompt_system += f"**Style Narratif Additionnel :** {style_instruction}\n\n"
-            prompt_system += (
-                "**Règles de base du jeu :**\n"
-                "- Ta réponse doit TOUJOURS être une partie narrative suivie d'une liste de 4 choix numérotés (1. à 4.).\n"
-                "- L'aventure ne doit jamais se terminer.\n"
-                f"- Le personnage principal est et restera {self.hero_name}.\n"
-                "- Maintiens une continuité stricte avec les faits établis dans la section 'FAITS ÉTABLIS'."
-            )
-
-
-        self.story_log.append({"role": "system", "content": prompt_system})
+        prompt_system = self.game_engine.build_system_prompt(base_prompt, style_instruction)
+        
+        self.game_engine.add_system_message(prompt_system)
         logging.debug(f"System prompt set: {prompt_system}")
         self.display_log("Lancement de l'aventure...")
         await self.ask_ai("Commence l'aventure.", max_retries=3)
@@ -423,23 +390,6 @@ class RPGApp(AsyncioTk):
         self._delete_item(self.style_var, self.preset_styles, self.custom_styles, dm.CUSTOM_STYLES_FILE, self.update_style_menu, "style")
 
     # --- AI Interaction ---
-    def _build_prompt_with_world_state(self, user_input, is_continuation, previous_response):
-        if previous_response:
-            prompt = f"Ta réponse précédente était invalide : '{previous_response}'. Corrige-la. Fournis une narration et 4 choix numérotés."
-        elif is_continuation:
-            prompt = "Continue l'histoire et propose 4 nouveaux choix."
-        else:
-            prompt = f"Le joueur choisit : '{user_input}'. Décris les conséquences et propose 4 nouveaux choix."
-
-        if not self.world_state:
-            return prompt
-
-        state_summary = "\n\n**FAITS ÉTABLIS (à respecter impérativement) :**\n"
-        for key, value in self.world_state.items():
-            state_summary += f"- {key}: {value}\n"
-        
-        return state_summary + "\n" + prompt
-
     async def _update_world_state(self, new_narrative):
         """Asks the AI to extract key facts from the new narrative."""
         if not new_narrative.strip():
@@ -459,14 +409,7 @@ class RPGApp(AsyncioTk):
             messages = [{"role": "user", "content": prompt}]
             raw_facts = await self.ai.complete(messages) # This assumes 'complete' can be used for such tasks
             
-            for line in raw_facts.split('\n'):
-                if ':' in line:
-                    key, value = line.split(':', 1)
-                    key = key.strip()
-                    value = value.strip()
-                    if key and value:
-                        self.world_state[key] = value
-                        logging.info(f"Updated world state: {key} = {value}")
+            self.game_engine.update_world_state_from_facts(raw_facts)
 
         except Exception as e:
             logging.error(f"Could not update world state: {e}", exc_info=True)
@@ -475,26 +418,26 @@ class RPGApp(AsyncioTk):
     async def ask_ai(self, user_input, is_continuation=False, max_retries=2, previous_response=None):
         logging.debug(f"ask_ai called. Input: '{user_input}', Continuation: {is_continuation}, Retries left: {max_retries}")
 
-        prompt = self._build_prompt_with_world_state(user_input, is_continuation, previous_response)
+        prompt = self.game_engine.build_prompt_with_context(user_input, is_continuation, previous_response)
         
         if not previous_response:
-            self.story_log.append({"role": "user", "content": prompt})
+            self.game_engine.add_user_message(prompt)
             logging.debug(f"Appended user message to story log: {prompt}")
 
         try:
-            message = await self.ai.complete(self.story_log)
-            self.story_log.append({"role": "assistant", "content": message})
-            text, choices = self.extract_choices(message)
+            message = await self.ai.complete(self.game_engine.story_log)
+            self.game_engine.add_assistant_message(message)
+            text, choices = self.game_engine.extract_choices(message)
 
             if len(choices) == 4:
                 self.display_log(text)
                 self.update_choices(choices)
-                await self._update_world_state(text) # NEW: Update state after a valid response
+                # await self._update_world_state(text) # DISABLED: Causes MAX_TOKENS - TODO: Fix later
                 logging.info("AI response was valid. Updated UI and world state.")
             elif max_retries > 0:
                 self.display_log("Réponse de l'IA invalide. Nouvelle tentative...")
                 logging.warning(f"Invalid AI response format. Retrying... (Retries left: {max_retries-1})")
-                self.story_log.pop()
+                self.game_engine.remove_last_message()
                 await self.ask_ai(user_input, is_continuation, max_retries - 1, previous_response=message)
             else:
                 self.display_log("[Erreur Critique] L'IA n'a pas pu générer une réponse valide.")
@@ -504,23 +447,6 @@ class RPGApp(AsyncioTk):
         except Exception as e:
             self.display_log(f"[Erreur Inattendue] {e}")
             logging.critical(f"An unexpected error occurred in ask_ai: {e}", exc_info=True)
-
-    def extract_choices(self, text):
-        text = text.replace("{hero_name}", self.hero_name)
-        lines = text.strip().split("\n")
-        choices, narrative = [], []
-        for line in lines:
-            if re.match(r"^\s*(\d+[\.\)]|[-*])\s", line):
-                choices.append(re.sub(r"^\s*(\d+[\.\)]|[-*])\s*", "", line).strip())
-            else:
-                narrative.append(line)
-        if not choices and len(narrative) > 4:
-            choices = narrative[-4:]
-            narrative = narrative[:-4]
-            logging.warning("Used fallback choice extraction logic.")
-        
-        logging.debug(f"Extracted {len(choices)} choices and narrative part.")
-        return "\n".join(narrative).strip(), choices
 
     def update_choices(self, choices):
         # Initialiser la taille de police des choix si nécessaire (augmentée de +2)
@@ -640,15 +566,14 @@ class RPGApp(AsyncioTk):
         logging.debug("Load menu updated.")
 
     def save_game(self):
-        if not self.story_log:
+        if not self.game_engine.story_log:
             self.display_log("[INFO] Impossible de sauvegarder une partie non commencée.")
             logging.warning("Attempted to save a game that has not started.")
             return
         save_name = simpledialog.askstring("Sauvegarder", "Nom de la sauvegarde :")
         if save_name:
             logging.info(f"User is saving the game as '{save_name}'.")
-            # NEW: Save world_state along with story_log
-            save_data = {"story_log": self.story_log, "world_state": self.world_state}
+            save_data = self.game_engine.get_save_data()
             dm.save_json(os.path.join(dm.SAVE_DIR, f"{save_name}.json"), save_data)
             self.display_log(f"[INFO] Partie sauvegardée sous : {save_name}")
             self.update_load_menu()
@@ -667,24 +592,22 @@ class RPGApp(AsyncioTk):
                 logging.error(f"Save file '{save_name}' is empty or corrupted.")
                 return
             
-            # NEW: Load both story_log and world_state
-            self.story_log = save_data.get("story_log", [])
-            self.world_state = save_data.get("world_state", {})
+            self.game_engine.load_game_state(save_data)
 
             self.text.configure(state="normal")
             self.text.delete("1.0", "end")
             # Re-populate the story display from the loaded log
-            for message in self.story_log:
+            for message in self.game_engine.story_log:
                 if message["role"] == "assistant":
-                    self.display_log(self.extract_choices(message["content"])[0])
+                    self.display_log(self.game_engine.extract_choices(message["content"])[0])
             
             # Set up the next choices
-            if self.story_log and self.story_log[-1]["role"] == "assistant":
-                last_choices = self.extract_choices(self.story_log[-1]["content"])[1]
-                self.update_choices(last_choices)
+            narrative, choices = self.game_engine.get_last_narrative_and_choices()
+            if choices:
+                self.update_choices(choices)
 
             self.display_log(f"[INFO] Partie '{save_name}' chargée.")
-            logging.info(f"Game '{save_name}' loaded successfully. World state: {self.world_state}")
+            logging.info(f"Game '{save_name}' loaded successfully. World state: {self.game_engine.world_state}")
         except Exception as e:
             self.display_log(f"[ERREUR] Impossible de charger la sauvegarde : {e}")
             logging.error(f"Failed to load save '{save_name}': {e}", exc_info=True)
@@ -700,4 +623,3 @@ class RPGApp(AsyncioTk):
         except Exception as e:
             self.display_log(f"[ERREUR] Impossible de supprimer la sauvegarde : {e}")
             logging.error(f"Failed to delete save '{save_name}': {e}", exc_info=True)
-
