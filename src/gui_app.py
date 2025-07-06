@@ -32,7 +32,7 @@ class RPGApp(AsyncioTk):
         super().__init__()
         logging.info("Initializing RPGApp.")
 
-        self.title("RPBot IA - Aventure Ultime (Doppelganger Edition)")
+        self.title("INFINITE STORY")
         self.geometry("1200x750")
         ctk.set_appearance_mode("Dark")
 
@@ -80,11 +80,15 @@ class RPGApp(AsyncioTk):
 
         self.text = ctk.CTkTextbox(main_frame, state="disabled", wrap="word", font=("Arial", self.font_size))
         self.text.grid(row=0, column=0, padx=10, pady=10, sticky="nsew")
-        self.text.bind("<Control-MouseWheel>", self._on_mouse_wheel)
-        self.text.bind("<Command-MouseWheel>", self._on_mouse_wheel)
+        # Bind scroll avec vérification Ctrl
+        self.text.bind("<MouseWheel>", self._on_mousewheel_handler)
+        self.text.bind("<Button-4>", self._on_mousewheel_handler)    # Linux scroll up
+        self.text.bind("<Button-5>", self._on_mousewheel_handler)    # Linux scroll down
 
         self.choices_frame = ctk.CTkScrollableFrame(main_frame, label_text="Vos Choix")
         self.choices_frame.grid(row=1, column=0, padx=10, pady=10, sticky="ew")
+        self.choices_frame.bind("<Control-MouseWheel>", self._on_choices_font_change)
+        self.choices_frame.bind("<Command-MouseWheel>", self._on_choices_font_change)
 
         control_panel = ctk.CTkFrame(self)
         control_panel.grid(row=0, column=1, padx=10, pady=10, sticky="nsew")
@@ -219,11 +223,39 @@ class RPGApp(AsyncioTk):
         self.text.configure(state="disabled")
         self.text.see("end")
 
-    def _on_mouse_wheel(self, event):
-        if event.delta > 0: self.font_size += 1
-        else: self.font_size -= 1
-        self.font_size = max(8, min(30, self.font_size))
-        self.text.configure(font=("Arial", self.font_size))
+    def _on_mousewheel_handler(self, event):
+        """Gère la molette : Ctrl = zoom, sinon = scroll normal"""
+        # Vérifier si Ctrl est pressé
+        if event.state & 0x4:  # 0x4 = Ctrl pressé
+            # Zoom
+            if hasattr(event, 'delta'):
+                # Windows/Mac
+                if event.delta > 0: self.font_size += 1
+                else: self.font_size -= 1
+            else:
+                # Linux (Button-4 = scroll up, Button-5 = scroll down)
+                if event.num == 4: self.font_size += 1
+                elif event.num == 5: self.font_size -= 1
+            
+            self.font_size = max(8, min(30, self.font_size))
+            self.text.configure(font=("Arial", self.font_size))
+        else:
+            # Scroll normal - laisser faire le comportement par défaut
+            return None  # Permet le scroll normal
+
+    def _on_choices_font_change(self, event):
+        # Ctrl+scroll pour changer la taille du texte des choix
+        if not hasattr(self, 'choices_font_size'):
+            self.choices_font_size = 14
+        
+        if event.delta > 0: self.choices_font_size += 1
+        else: self.choices_font_size -= 1
+        self.choices_font_size = max(8, min(24, self.choices_font_size))
+        
+        # Mettre à jour tous les boutons existants
+        for widget in self.choices_frame.winfo_children():
+            if isinstance(widget, ctk.CTkButton):
+                widget.configure(font=("Arial", self.choices_font_size))
 
     def run_async(self, coro):
         asyncio.create_task(coro)
@@ -483,15 +515,29 @@ class RPGApp(AsyncioTk):
         return "\n".join(narrative).strip(), choices
 
     def update_choices(self, choices):
+        # Initialiser la taille de police des choix si nécessaire (augmentée de +2)
+        if not hasattr(self, 'choices_font_size'):
+            self.choices_font_size = 14
+            
         for widget in self.choices_frame.winfo_children(): widget.destroy()
         if choices:
             for choice_text in choices:
-                b = ctk.CTkButton(self.choices_frame, text=choice_text, command=lambda c=choice_text: self.run_async(self.on_choice_click(c)))
-                b.pack(pady=4, padx=10, fill="x")
+                b = ctk.CTkButton(
+                    self.choices_frame, 
+                    text=choice_text, 
+                    command=lambda c=choice_text: self.run_async(self.on_choice_click(c)),
+                    font=("Arial", self.choices_font_size)
+                )
+                b.pack(pady=6, padx=10, fill="x")
         else:
             self.display_log("L'aventure est en pause. Cliquez sur 'Continuer' pour relancer l'IA.")
-            b = ctk.CTkButton(self.choices_frame, text="Continuer", command=lambda: self.run_async(self.ask_ai("Continuer", is_continuation=True)))
-            b.pack(pady=4, padx=10, fill="x")
+            b = ctk.CTkButton(
+                self.choices_frame, 
+                text="Continuer", 
+                command=lambda: self.run_async(self.ask_ai("Continuer", is_continuation=True)),
+                font=("Arial", self.choices_font_size)
+            )
+            b.pack(pady=6, padx=10, fill="x")
         logging.debug(f"Updated UI with {len(choices)} choices.")
 
     async def on_choice_click(self, choice):
