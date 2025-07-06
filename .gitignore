@@ -3,5 +3,6 @@
 .claude 
 \"custom_styles.json\"  
 \"custom_universes.json\"  
-\"narrative_styles.json\"  
 \"saves/\" 
+logs/
+screens/

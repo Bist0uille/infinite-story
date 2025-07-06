@@ -44,12 +44,17 @@ class RPGApp(AsyncioTk):
         self.font_size = 14
 
         # --- AI Client ---
+        self.ai = None
+        self.ai_available = False
         try:
             self.ai = AIClient()
+            self.ai_available = True
+            logging.info("AI Client initialized successfully")
         except EnvironmentError as e:
-            self.display_log(f"[ERREUR CRITIQUE] {e}")
-            logging.critical(f"Failed to initialize AIClient: {e}", exc_info=True)
-            return
+            self._handle_ai_initialization_error(e)
+        except Exception as e:
+            logging.critical(f"Unexpected error initializing AIClient: {e}", exc_info=True)
+            self._handle_ai_initialization_error(e)
 
         # --- Data Loading ---
         dm.init_default_files()
@@ -59,7 +64,7 @@ class RPGApp(AsyncioTk):
             
         self.preset_universes = dm.load_json(dm.PRESET_UNIVERSES_FILE)
         self.custom_universes = dm.load_json(dm.CUSTOM_UNIVERSES_FILE)
-        self.preset_styles = dm.load_json(dm.NARRATIVE_STYLES_FILE)
+        self.preset_styles = dm.load_json(dm.PRESET_STYLES_FILE)
         self.custom_styles = dm.load_json(dm.CUSTOM_STYLES_FILE)
         
         self.all_universes = {**self.preset_universes, **self.custom_universes}
@@ -265,6 +270,9 @@ class RPGApp(AsyncioTk):
         self.run_async(self.start_game())
 
     async def start_game(self):
+        if not self._check_ai_available():
+            return
+        
         self.story_log.clear()
         self.world_state.clear() # NEW: Reset world state on new game
         self.text.configure(state="normal")
@@ -540,12 +548,86 @@ class RPGApp(AsyncioTk):
             b.pack(pady=6, padx=10, fill="x")
         logging.debug(f"Updated UI with {len(choices)} choices.")
 
+    def _handle_ai_initialization_error(self, error):
+        """Handle AI initialization errors gracefully"""
+        self.ai_available = False
+        error_msg = f"[ERREUR CRITIQUE] Impossible d'initialiser l'IA: {error}"
+        logging.critical(f"AI initialization failed: {error}", exc_info=True)
+        
+        # Show error in UI
+        self.display_log(error_msg)
+        self.display_log("\n" + "="*50)
+        self.display_log("L'application fonctionne en mode dégradé.")
+        self.display_log("Vérifiez votre clé API GEMINI_API_KEY dans le fichier .env")
+        self.display_log("Les fonctions d'histoire sont désactivées.")
+        self.display_log("="*50 + "\n")
+        
+        # Disable AI-dependent features
+        self._disable_ai_features()
+
+    def _disable_ai_features(self):
+        """Disable features that require AI when AI is unavailable"""
+        # This will be called from _build_ui, so we need to handle it there
+        pass
+
+    def _check_ai_available(self):
+        """Check if AI is available before AI operations"""
+        if not self.ai_available:
+            self.display_log("[ERREUR] Fonctionnalité indisponible - IA non initialisée")
+            return False
+        return True
+
+    def _show_loading_indicator(self, message="Chargement..."):
+        """Show loading indicator in choices area"""
+        for widget in self.choices_frame.winfo_children(): 
+            widget.destroy()
+        loading_label = ctk.CTkLabel(
+            self.choices_frame, 
+            text=message, 
+            font=("Arial", 14, "italic")
+        )
+        loading_label.pack(pady=10)
+
+    def _hide_loading_indicator(self):
+        """Hide loading indicator - choices will be updated by caller"""
+        pass  # Choices update will clear the loading indicator
+
+    def _handle_ai_error(self, error):
+        """Handle AI errors gracefully during gameplay"""
+        logging.error(f"AI error during gameplay: {error}", exc_info=True)
+        self.display_log(f"[ERREUR IA] {error}")
+        
+        # Show error in choices area
+        for widget in self.choices_frame.winfo_children(): 
+            widget.destroy()
+        error_label = ctk.CTkLabel(
+            self.choices_frame, 
+            text="Erreur IA - Réessayez ou redémarrez l'aventure",
+            text_color="red"
+        )
+        error_label.pack(pady=10)
+        
+        retry_button = ctk.CTkButton(
+            self.choices_frame,
+            text="Réessayer",
+            command=lambda: self.run_async(self.ask_ai("Continuer", is_continuation=True))
+        )
+        retry_button.pack(pady=5)
+
     async def on_choice_click(self, choice):
+        if not self._check_ai_available():
+            return
+            
         logging.info(f"User chose: '{choice}'")
         self.display_log(f"▶ Choix : {choice}")
-        for widget in self.choices_frame.winfo_children(): widget.destroy()
-        ctk.CTkLabel(self.choices_frame, text="L'IA réfléchit...").pack()
-        await self.ask_ai(choice)
+        # Show loading indicator
+        self._show_loading_indicator("L'IA réfléchit...")
+        try:
+            await self.ask_ai(choice)
+        except Exception as e:
+            self._handle_ai_error(e)
+        finally:
+            self._hide_loading_indicator()
 
     # --- Save/Load Management ---
     def get_save_files(self):

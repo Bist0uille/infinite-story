@@ -1,0 +1,20 @@
+# INFINITE STORY - Dependencies
+# Core dependencies for the text-based RPG application
+
+# Environment and configuration
+python-dotenv>=1.0.0           # Environment variables management
+
+# HTTP client for AI API calls  
+aiohttp>=3.9.0                 # Async HTTP client for Gemini API
+
+# GUI framework
+customtkinter>=5.2.0           # Modern tkinter interface
+
+# Optional: Development and debugging
+# pytest>=7.0.0                # For unit testing (uncomment for development)
+# black>=23.0.0                # Code formatting (uncomment for development)
+# flake8>=6.0.0                # Code linting (uncomment for development)
+
+# Note: tkinter is included with Python standard library
+# Note: asyncio is included with Python standard library
+# Note: json, os, logging are included with Python standard library

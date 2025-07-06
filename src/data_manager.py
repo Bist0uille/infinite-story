@@ -6,7 +6,7 @@ import logging
 SAVE_DIR = "saves"
 CUSTOM_UNIVERSES_FILE = "custom_universes.json"
 PRESET_UNIVERSES_FILE = "preset_universes.json"
-NARRATIVE_STYLES_FILE = "narrative_styles.json"
+PRESET_STYLES_FILE = "preset_styles.json"
 CUSTOM_STYLES_FILE = "custom_styles.json"
 
 # --- Utility Functions ---
@@ -52,12 +52,12 @@ def init_default_files():
         }
         save_json(PRESET_UNIVERSES_FILE, default_universes)
 
-    if not os.path.exists(NARRATIVE_STYLES_FILE):
-        logging.info(f"{NARRATIVE_STYLES_FILE} not found, creating default.")
+    if not os.path.exists(PRESET_STYLES_FILE):
+        logging.info(f"{PRESET_STYLES_FILE} not found, creating default.")
         default_styles = {
             "Classique": "Raconte l'histoire de manière directe et factuelle.",
             "Poétique": "Utilise un langage riche et imagé, avec des métaphores et des descriptions évocatrices pour raconter l'histoire.",
             "Humoristique": "Adopte un ton léger et amusant. N'hésite pas à inclure des situations comiques ou des dialogues pleins d'esprit.",
             "Dramatique": "Crée de la tension et du suspense. Utilise des descriptions intenses, des dialogues chargés d'émotion et des rebondissements inattendus. Chaque choix doit sembler crucial."
         }
-        save_json(NARRATIVE_STYLES_FILE, default_styles)
+        save_json(PRESET_STYLES_FILE, default_styles)
